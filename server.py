@@ -1,7 +1,10 @@
+"""Maths server."""
+
 import select
 import socket
 from dataclasses import dataclass
 
+from utils import to_address
 from simpleeval import InvalidExpression, simple_eval
 
 
@@ -22,10 +25,6 @@ def find_ready(sources, timeout=0.05):
         return connections
     except select.error:
         return []
-
-
-def to_address(host: str, port: int) -> str:
-    return f'{host}:{port}'
 
 
 @dataclass

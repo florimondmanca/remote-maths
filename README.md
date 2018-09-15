@@ -1,12 +1,12 @@
-# Remote Calculator
+# Remote Maths
 
-Networking app allowing clients to do remote maths in a friendly REPL.
+Networking app allowing clients to do remote maths in a simple REPL.
 
 ## Install
 
 The REPL relies on [simpleeval](https://github.com/danthedeckie/simpleeval) to safely evaluate expressions.
 
-To install it, simply install the requirements:
+To install it, use the requirements file:
 
 ```bash
 $ pip install -r requirements.txt
@@ -21,13 +21,15 @@ $ python server.py
 Listening on localhost:4043
 ```
 
-In another terminal session, you can start a client and do some maths:
+In another terminal session, you can start a client and start doing some maths:
 
 ```bash
 $ python client.py
 > 2**3
 8
 ```
+
+To stop either the server or a client, simply use `Ctrl+C`.
 
 ## Security
 
