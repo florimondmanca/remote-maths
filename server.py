@@ -1,14 +1,19 @@
-"""Maths server."""
+"""Maths server.
+
+Usage:
+$ python server.py [address=$MATHS_SERVER_ADDRESS|localhost:4042]
+"""
 
 import select
 import socket
 from dataclasses import dataclass
 
-from utils import to_address
+from address import to_address, from_argv
 from simpleeval import InvalidExpression, simple_eval
 
 
 def evaluate(expression: str) -> str:
+    """Evaluate an expression and return a response message."""
     try:
         return str(simple_eval(expression))
     except InvalidExpression as e:
@@ -20,6 +25,7 @@ def evaluate(expression: str) -> str:
 
 
 def find_ready(sources, timeout=0.05):
+    """Find ready connections among a list of source connections."""
     try:
         connections, _, _ = select.select(sources, [], [], timeout)
         return connections
@@ -29,14 +35,16 @@ def find_ready(sources, timeout=0.05):
 
 @dataclass
 class Server:
+    """A socket server for doing remote maths."""
 
     host: str
     port: int
-    listeners: int = 1
+    backlog: int = 5
     message_size: int = 1024
     clients: dict = None
 
     def __post_init__(self):
+        # Called after the dataclass' generated `__init__()`
         self.clients = []
 
     def __enter__(self):
@@ -47,27 +55,31 @@ class Server:
         self.sock.close()
 
     @property
-    def address(self):
+    def address(self) -> str:
+        """Return the server's address."""
         return to_address(self.host, self.port)
 
     def start(self):
+        """Start the server and run its main evaluation loop."""
         self.sock.bind((self.host, self.port))
-        self.sock.listen(self.listeners)
+        self.sock.listen(self.backlog)
         print(f'Listening on {self.address}')
 
         self.running = True
         while self.running:
             self.poll()
-            self.read_and_answer()
+            self.read_evaluate_respond()
 
     def poll(self):
+        """Check and register new connections."""
         new_connections = find_ready([self.sock])
         for connection in new_connections:
             client, address = connection.accept()
             print('New connection from', to_address(*address))
             self.clients.append(client)
 
-    def read_and_answer(self):
+    def read_evaluate_respond(self):
+        """Perform read/evaluate/respond for each registered client."""
         ready_clients = find_ready(self.clients)
         dead_clients = []
 
@@ -104,7 +116,8 @@ class Server:
 
 
 if __name__ == '__main__':
-    with Server(host='localhost', port=4042) as server:
+    host, port = from_argv()
+    with Server(host=host, port=port) as server:
         try:
             server.start()
         except KeyboardInterrupt:
