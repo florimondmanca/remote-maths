@@ -1,10 +1,8 @@
+import select
 import socket
-from time import sleep
-from simpleeval import simple_eval, InvalidExpression
+from dataclasses import dataclass
 
-
-def to_address(host, port) -> str:
-    return f'{host}:{port}'
+from simpleeval import InvalidExpression, simple_eval
 
 
 def evaluate(expression: str) -> str:
@@ -18,40 +16,97 @@ def evaluate(expression: str) -> str:
         return f'Unknown error: {e}'
 
 
-def run_forever(host: str, port: int,
-                listeners: int = 1, message_size: int = 1024):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind((host, port))
-        sock.listen(listeners)
+def find_ready(sources, timeout=0.05):
+    try:
+        connections, _, _ = select.select(sources, [], [], timeout)
+        return connections
+    except select.error:
+        return []
 
-        print(f'Listening on {host}:{port}')
 
-        connection, connection_host_and_port = sock.accept()
-        address = to_address(*connection_host_and_port)
+def to_address(host: str, port: int) -> str:
+    return f'{host}:{port}'
 
-        with connection:
-            print('New connection:', address)
-            while True:
-                data: bytes = connection.recv(message_size)
 
-                if not data:
-                    print(f'Connection {address} closed by client.')
-                    break
+@dataclass
+class Server:
 
-                message: str = data.decode()
-                response: str = evaluate(message)
+    host: str
+    port: int
+    listeners: int = 1
+    message_size: int = 1024
+    clients: dict = None
 
-                connection.sendall(response.encode())
+    def __post_init__(self):
+        self.clients = []
 
-                print({
-                    'connection': address,
-                    'received': message,
-                    'sent': response
-                })
+    def __enter__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        return self
+
+    def __exit__(self, *args):
+        self.sock.close()
+
+    @property
+    def address(self):
+        return to_address(self.host, self.port)
+
+    def start(self):
+        self.sock.bind((self.host, self.port))
+        self.sock.listen(self.listeners)
+        print(f'Listening on {self.address}')
+
+        self.running = True
+        while self.running:
+            self.poll()
+            self.read_and_answer()
+
+    def poll(self):
+        new_connections = find_ready([self.sock])
+        for connection in new_connections:
+            client, address = connection.accept()
+            print('New connection from', to_address(*address))
+            self.clients.append(client)
+
+    def read_and_answer(self):
+        ready_clients = find_ready(self.clients)
+        dead_clients = []
+
+        for client in ready_clients:
+            address = to_address(*client.getsockname())
+
+            data: bytes = client.recv(self.message_size)
+
+            if not data:
+                print(f'Connection {address} closed by client.')
+                client.close()
+                dead_clients.append(client)
+                continue
+
+            message: str = data.decode()
+            response: str = evaluate(message)
+
+            client.sendall(response.encode())
+
+            print({
+                'connection': address,
+                'received': message,
+                'sent': response
+            })
+
+        if not dead_clients:
+            return
+
+        # Remove dead clients so they're not polled again in the future
+        self.clients = [
+            client for client in self.clients
+            if client not in dead_clients
+        ]
 
 
 if __name__ == '__main__':
-    try:
-        run_forever(host='localhost', port=4043)
-    except KeyboardInterrupt:
-        print('Exited')
+    with Server(host='localhost', port=4042) as server:
+        try:
+            server.start()
+        except KeyboardInterrupt:
+            pass
