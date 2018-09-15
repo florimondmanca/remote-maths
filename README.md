@@ -28,7 +28,7 @@ In another terminal session, you can start a client and start doing some maths:
 ```bash
 $ python client.py
 Connected to localhost:4042
-> 2**3
+>>> 2**3
 8
 ```
 
