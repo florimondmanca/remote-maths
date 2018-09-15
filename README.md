@@ -1,8 +1,8 @@
 # Remote Maths
 
-Networking app allowing clients to do remote maths in a simple REPL.
+Networking app allowing one or more clients to do remote maths in a secure REPL.
 
-Built as part of tinkering with lower-level socket programming in Python.
+*Built as part of tinkering with lower-level socket programming in Python.*
 
 ## Install
 
