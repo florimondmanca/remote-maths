@@ -4,7 +4,7 @@ Networking app allowing clients to do remote maths in a friendly REPL.
 
 ## Install
 
-The REPL relies on [simpleeval]() to safely evaluate expressions.
+The REPL relies on [simpleeval](https://github.com/danthedeckie/simpleeval) to safely evaluate expressions.
 
 To install it, simply install the requirements:
 
